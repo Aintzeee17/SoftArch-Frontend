@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Registration</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/config.js"></script>
+    <script>
+        function checkRegRole() {
+            const role = document.getElementById("regRole").value;
+            const matricField = document.getElementById("regMatricField");
+            if (role === "student") {
+                matricField.style.display = "block";
+                document.getElementById("regMatricNo").required = true;
+            } else {
+                matricField.style.display = "none";
+                document.getElementById("regMatricNo").required = false;
+            }
+        }
+    </script>
+</head>
+<body class="register-body">
+    <div class="box">
+        <h2>CREATE ACCOUNT</h2>
+        <div id="errBox" style="display: none; background: #fee2e2; color: #ef4444; padding: 10px; border-radius: 6px; font-size: 13px; text-align: center; margin-bottom: 20px; font-weight: 600;"></div>
+
+        <form id="regForm">
+            <label>Register System Role As</label>
+            <select id="regRole" onchange="checkRegRole()" required>
+                <option value="" disabled selected>-- Choose Role --</option>
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+                <option value="admin">Administrator</option>
+            </select>
+
+            <div id="regMatricField" style="display: none;">
+                <label>Matric Number</label>
+                <input type="text" id="regMatricNo" placeholder="Matric Identification String">
+            </div>
+
+            <label>Full Name</label>
+            <input type="text" id="regName" placeholder="John Doe" required>
+
+            <label>Valid Email Address</label>
+            <input type="email" id="regEmail" placeholder="john@example.com" required>
+
+            <label>Account Password</label>
+            <input type="password" id="regPassword" placeholder="Minimum 6 characters" required>
+
+            <button type="submit">Commit Registration</button>
+        </form>
+        <p class="link">Have an account? <a href="login.html">Sign in instead</a></p>
+    </div>
+
+    <script>
+        document.getElementById('regForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errBox = document.getElementById('errBox');
+            errBox.style.display = 'none';
+
+            const payload = {
+                role: document.getElementById('regRole').value,
+                name: document.getElementById('regName').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPassword').value,
+                matricNo: document.getElementById('regMatricNo').value || null
+            };
+
+            try {
+                // Uses API_BASE_URL variable from js/config.js smoothly
+                const res = await fetch(`${API_BASE_URL}/api/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    alert("Account setup complete! Proceeding to login page.");
+                    window.location.href = "login.html";
+                } else {
+                    const data = await res.json();
+                    errBox.innerText = data.error || "Registration validation error.";
+                    errBox.style.display = 'block';
+                }
+            } catch (err) {
+                errBox.innerText = "Network transmission interface error.";
+                errBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

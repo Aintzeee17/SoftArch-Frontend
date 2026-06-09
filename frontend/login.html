@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Account Sign In</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/config.js"></script>
+    <script>
+        function checkRoleInput() {
+            const role = document.getElementById("loginRole").value;
+            const matricField = document.getElementById("matricField");
+            if (role === "student") {
+                matricField.style.display = "block";
+                document.getElementById("matricNo").required = true;
+            } else {
+                matricField.style.display = "none";
+                document.getElementById("matricNo").required = false;
+            }
+        }
+    </script>
+</head>
+<body class="login-body">
+    <div class="box">
+        <h2>SYSTEM LOGIN</h2>
+        <div id="errBox" style="display: none; background: #fee2e2; color: #ef4444; padding: 10px; border-radius: 6px; font-size: 13px; text-align: center; margin-bottom: 20px; font-weight: 600;"></div>
+
+        <form id="loginForm">
+            <label>System Role Access</label>
+            <select id="loginRole" onchange="checkRoleInput()" required>
+                <option value="" disabled selected>-- Select Role --</option>
+                <option value="student">Student</option>
+                <option value="lecturer">Lecturer</option>
+                <option value="admin">Administrator</option>
+            </select>
+
+            <div id="matricField" style="display: none;">
+                <label>Matric Number</label>
+                <input type="text" id="matricNo" placeholder="e.g. B032210099">
+            </div>
+
+            <label>Account Email</label>
+            <input type="email" id="loginEmail" placeholder="name@domain.com" required>
+
+            <label>Secure Password</label>
+            <input type="password" id="loginPassword" placeholder="••••••••" required>
+
+            <button type="submit">Authenticate</button>
+        </form>
+        <p class="link">Need an account? <a href="register.html">Sign up here</a></p>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const errBox = document.getElementById('errBox');
+            errBox.style.display = 'none';
+
+            const payload = {
+                role: document.getElementById('loginRole').value,
+                email: document.getElementById('loginEmail').value,
+                password: document.getElementById('loginPassword').value,
+                matricNo: document.getElementById('matricNo').value || null
+            };
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    // Pull and store exact database string matches safely to local storage mapping targets
+                    localStorage.setItem('user_id', data.user_id || data.userId);
+                    localStorage.setItem('user_name', data.user_name || data.name);
+                    localStorage.setItem('user_role', data.user_role || data.role);
+                    
+                    // Redirect through home page landing system initialization checklist
+                    window.location.href = "index.html";
+                } else {
+                    errBox.innerText = data.error || "Authentication rejected.";
+                    errBox.style.display = 'block';
+                }
+            } catch (err) {
+                errBox.innerText = "Error connecting to backend API.";
+                errBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
