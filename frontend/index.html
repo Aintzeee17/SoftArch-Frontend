@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMARTLEARN Gateway</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/config.js"></script>
+</head>
+<body>
+
+    <div class="navbar">
+        <h2>SMARTLEARN PORTAL</h2>
+        <div id="navAuthSection"></div>
+    </div>
+
+    <div class="container" style="max-width: 650px; text-align: center; margin-top: 80px;">
+        <div class="card" style="padding: 50px 30px;">
+            <h1 id="welcomeHeader" style="color: var(--primary-blue); margin-bottom: 15px; font-size: 28px;">Welcome to SMARTLEARN</h1>
+            <p id="welcomeSubtext" style="color: var(--text-muted); margin-bottom: 35px; font-size: 15px;">A decoupled cloud architecture ecosystem built for modern learning management.</p>
+            
+            <div id="actionControls" style="display: flex; gap: 15px; justify-content: center;"></div>
+        </div>
+    </div>
+
+    <script>
+        const userId = localStorage.getItem('user_id');
+        const role = localStorage.getItem('user_role');
+        const name = localStorage.getItem('user_name');
+
+        const navAuth = document.getElementById('navAuthSection');
+        const header = document.getElementById('welcomeHeader');
+        const subtext = document.getElementById('welcomeSubtext');
+        const actions = document.getElementById('actionControls');
+
+        if (!userId) {
+            navAuth.innerHTML = `<a href="login.html" class="add-btn">Sign In</a>`;
+            header.innerText = "Welcome to SMARTLEARN";
+            actions.innerHTML = `
+                <a href="login.html" class="add-btn" style="padding: 12px 30px;">Sign Into System</a>
+                <a href="register.html" class="logout-btn" style="padding: 12px 30px;">Create Account</a>
+            `;
+        } else {
+            navAuth.innerHTML = `
+                <span style="color: #cbd5e1; margin-right: 15px; font-size:14px;">Hi, ${name}!</span>
+                <button onclick="logout()" class="logout-btn" style="padding: 6px 12px;">Sign Out</button>
+            `;
+            header.innerText = `Welcome back, ${name}`;
+            subtext.innerText = `You are logged in with the secure role authority level: [${role.toUpperCase()}].`;
+            actions.innerHTML = `<a href="dashboard.html" class="add-btn" style="padding: 12px 30px;">Open Dashboard Workspace</a>`;
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.reload();
+        }
+    </script>
+</body>
+</html>

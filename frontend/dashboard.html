@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Workspace Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/config.js"></script>
+</head>
+<body>
+    <div class="navbar">
+        <h2>SMARTLEARN MASTER WORKSPACE</h2>
+        <div>
+            <span id="userGreeting" style="color: #cbd5e1; margin-right: 15px; font-weight: 600; font-size:14px;"></span>
+            <button onclick="logout()" class="logout-btn" style="padding: 6px 12px;">Sign Out</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div id="notifyMessage" style="display: none; padding: 12px; font-size: 14px; margin-bottom: 25px; text-align: center; border-radius: 8px; font-weight: 600;"></div>
+
+        <div class="card" id="studentView" style="display: none; max-width: 450px;">
+            <h2 style="color: var(--primary-blue); font-size: 18px; margin-bottom: 15px;">Enroll In New Course</h2>
+            <form id="joinCourseForm">
+                <label>Course Code String</label>
+                <input type="text" id="enrollCourseCode" placeholder="e.g. CSF3433" style="text-transform: uppercase;" required>
+                <button type="submit" class="join-btn" style="width: 100%;">Process Enrollment</button>
+            </form>
+        </div>
+
+        <div class="card" id="managementView" style="display: none;">
+            <h3 id="formTitle" style="color: var(--primary-blue); margin-top:0; margin-bottom: 20px;">Add New Academic Course Module</h3>
+            <form id="courseForm">
+                <input type="hidden" id="courseId">
+                
+                <label>Unique Course Code</label>
+                <input type="text" id="courseCode" placeholder="e.g. CSF3433" required>
+
+                <label>Course Title Designator</label>
+                <input type="text" id="courseTitle" placeholder="e.g. Software Architecture Frameworks" required>
+
+                <label>Syllabus Course Specifications / Description</label>
+                <textarea id="courseDesc" rows="4" placeholder="Enter course summaries..." required></textarea>
+
+                <div class="form-group" id="lecturerAssignmentGroup" style="display: none; margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; font-weight:600;">Assign Designated Lecturer</label>
+                    <select id="courseLecturerId" style="width: 100%; padding: 10px; border: 1px solid #cbd5e0; border-radius: 4px;">
+                        <option value="">-- Select Assigned Lecturer --</option>
+                        <option value="12">puteri (lecturer@gmail.com)</option>
+                        <option value="10">alessa (s76278@ocean.umt.edu.my)</option>
+                    </select>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" id="saveBtn">Commit Data Record</button>
+                    <button type="button" id="cancelBtn" class="logout-btn" style="display: none;" onclick="clearFormState()">Abort Editing</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 id="tableTitle" style="color: var(--primary-blue); font-size: 20px; margin-top:0; margin-bottom: 15px;">Academic Directory Index</h2>
+            
+            <div id="cardsLayoutContainer" style="display: none;"></div>
+
+            <table id="adminTableContainer" style="display: none;">
+                <thead>
+                    <tr>
+                        <th style="width: 60px;">Index</th>
+                        <th>Course Title Description</th>
+                        <th>Subject Code</th>
+                        <th style="width: 180px;">Administrative Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="coursesTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const userId = localStorage.getItem('user_id');
+        const role = localStorage.getItem('user_role');
+        const name = localStorage.getItem('user_name');
+
+        if (!userId) { window.location.href = "login.html"; }
+        document.getElementById('userGreeting').innerText = `${name} [${role.toUpperCase()}]`;
+
+        // Configure layout layers views structure constraints
+        if (role === 'admin') {
+            document.getElementById('managementView').style.display = 'block';
+            document.getElementById('lecturerAssignmentGroup').style.display = 'block'; // Show drop box to Admin
+            document.getElementById('adminTableContainer').style.display = 'table';
+            document.getElementById('tableTitle').innerText = "Global System Catalog Index (Admin Master Privileges)";
+        } else if (role === 'lecturer') {
+            document.getElementById('managementView').style.display = 'block';
+            document.getElementById('lecturerAssignmentGroup').style.display = 'none';  // Hide drop box from Lecturer
+            document.getElementById('cardsLayoutContainer').className = 'course-grid';
+            document.getElementById('cardsLayoutContainer').style.display = 'grid';
+            document.getElementById('tableTitle').innerText = "Assigned Teaching Syllabus Modules";
+        } else if (role === 'student') {
+            document.getElementById('studentView').style.display = 'block';
+            document.getElementById('cardsLayoutContainer').className = 'course-grid';
+            document.getElementById('cardsLayoutContainer').style.display = 'grid';
+            document.getElementById('tableTitle').innerText = "My Enrolled Academic Core Modules";
+        }
+
+        function triggerAlert(message, successState = true) {
+            const container = document.getElementById('notifyMessage');
+            container.innerText = message;
+            container.style.display = 'block';
+            container.style.background = successState ? '#dcfce7' : '#fee2e2';
+            container.style.color = successState ? '#166534' : '#991b1b';
+            setTimeout(() => { container.style.display = 'none'; }, 3500);
+        }
+
+        // FETCH QUERY CONTROLLER
+        async function pullDirectoryData() {
+            try {
+                // 👇 FIXED ENDPOINT ROUTE: Prevents duplicate injection paths
+                const res = await fetch(`${API_BASE_URL}/api/courses?role=${role}&userId=${userId}`);
+                const courses = await res.json();
+                
+                if (role === 'student' || role === 'lecturer') {
+                    const grid = document.getElementById('cardsLayoutContainer');
+                    grid.innerHTML = '';
+                    
+                    if (!courses || courses.length === 0) {
+                        grid.innerHTML = `<p style="color: var(--text-muted); font-style:italic;">No active course rows mapping this user scope identifier inside directory.</p>`;
+                        return;
+                    }
+
+                    courses.forEach((c, index) => {
+                        let dynamicActionBlock = '';
+                        if (role === 'lecturer') {
+                            dynamicActionBlock = `
+                                <div style="margin-top: 15px; display:flex; gap:8px;">
+                                    <button class="btn-edit" style="flex:1;" onclick="setEditMode(${c.courseId}, '${c.courseCode}', '${c.title}', '${c.description || ''}')">Edit</button>
+                                    <button class="btn-delete" style="flex:1;" onclick="dropCourseEntry(${c.courseId})">Drop</button>
+                                </div>
+                            `;
+                        }
+                        grid.innerHTML += `
+                            <div class="course-card">
+                                <div>
+                                    <h3>${index + 1}. ${c.title.toUpperCase()}</h3>
+                                    <p style="color: var(--secondary-blue); font-weight:700; margin-top:5px;">Code: ${c.courseCode}</p>
+                                    <p style="margin-top:10px; color:#4a5568;">${c.description || 'No module criteria provided.'}</p>
+                                </div>
+                                ${dynamicActionBlock}
+                            </div>
+                        `;
+                    });
+                } 
+                else if (role === 'admin') {
+                    const tbody = document.getElementById('coursesTableBody');
+                    tbody.innerHTML = '';
+
+                    if (!courses || courses.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: var(--text-muted);">Database row mapping collection empty.</td></tr>`;
+                        return;
+                    }
+
+                    courses.forEach((c, idx) => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${idx + 1}</td>
+                                <td><strong>${c.title.toUpperCase()}</strong><br><small style="color:#718096;">${c.description || ''}</small></td>
+                                <td><code>${c.courseCode}</code></td>
+                                <td>
+                                    <button class="btn-edit" onclick="setEditMode(${c.courseId}, '${c.courseCode}', '${c.title}', '${c.description || ''}', ${c.lecturerId || 0})">Edit</button>
+                                    <button class="btn-delete" style="margin-left: 4px;" onclick="dropCourseEntry(${c.courseId})">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (err) {
+                triggerAlert("Error matching layout with backend API pipeline query operations.", false);
+            }
+        }
+
+        // 🎓 STUDENT POST SUBMISSION
+        document.getElementById('joinCourseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/courses/enroll`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        studentId: parseInt(userId),
+                        courseCode: document.getElementById('enrollCourseCode').value.trim().toUpperCase()
+                    })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    triggerAlert("Enrollment tracking added cleanly!");
+                    document.getElementById('enrollCourseCode').value = '';
+                    await pullDirectoryData();
+                } else {
+                    triggerAlert(data.error || "Enrollment process exception.", false);
+                }
+            } catch (error) {
+                triggerAlert("Network failure processing enrollment request.", false);
+            }
+        });
+
+        // 👑 ADMINISTRATIVE / FACULTY WRITE SUBMISSION FORM
+        document.getElementById('courseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('courseId').value;
+            
+            // Calculate dynamic selection target
+            let assignedLecturerId = 0;
+            if (role === 'lecturer') {
+                assignedLecturerId = parseInt(userId);
+            } else if (role === 'admin') {
+                const dropVal = document.getElementById('courseLecturerId').value;
+                assignedLecturerId = dropVal ? parseInt(dropVal) : null;
+            }
+
+            const payload = {
+                courseCode: document.getElementById('courseCode').value.trim(),
+                title: document.getElementById('courseTitle').value.trim(),
+                description: document.getElementById('courseDesc').value.trim(),
+                lecturerId: assignedLecturerId,
+                role: role // 👇 CRITICAL: Sent over authorization middleware verification gate filters
+            };
+
+            let targetUrl = id ? `${API_BASE_URL}/api/courses/${id}` : `${API_BASE_URL}/api/courses`;
+            let targetMethod = id ? 'PUT' : 'POST';
+
+            try {
+                const res = await fetch(targetUrl, {
+                    method: targetMethod,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    clearFormState();
+                    await pullDirectoryData();
+                    triggerAlert("Course mapping data committed successfully!");
+                } else {
+                    triggerAlert(data.error || "Error executing model layout query logic.", false);
+                }
+            } catch (err) {
+                triggerAlert("Network communications structural anomaly detected.", false);
+            }
+        });
+
+        // DELETE ROUTE CONTROLLER
+        async function dropCourseEntry(courseId) {
+            if (!confirm("Are you sure you want to permanently delete this course row entry?")) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/courses/${courseId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: role }) // Passes active role token validation tracking check
+                });
+                if (res.ok) {
+                    await pullDirectoryData();
+                    triggerAlert("Course sequence successfully deleted.");
+                } else {
+                    const data = await res.json();
+                    triggerAlert(data.error || "Deletion access rejected.", false);
+                }
+            } catch (error) {
+                triggerAlert("Could not finalize delete routine operation.", false);
+            }
+        }
+
+        function setEditMode(id, code, title, desc, lecturerId = 0) {
+            document.getElementById('courseId').value = id;
+            document.getElementById('courseCode').value = code;
+            document.getElementById('courseTitle').value = title;
+            document.getElementById('courseDesc').value = desc;
+            
+            if (role === 'admin' && lecturerId) {
+                document.getElementById('courseLecturerId').value = lecturerId;
+            }
+
+            document.getElementById('formTitle').innerText = "Modify Existing Course Module Architecture Mapping";
+            document.getElementById('cancelBtn').style.display = 'inline-block';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function clearFormState() {
+            document.getElementById('courseId').value = '';
+            document.getElementById('courseForm').reset();
+            document.getElementById('formTitle').innerText = "Add New Academic Course Module";
+            document.getElementById('cancelBtn').style.display = 'none';
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = "index.html";
+        }
+
+        // Inherent startup script execution loop
+        pullDirectoryData();
+    </script>
+</body>
+</html>
